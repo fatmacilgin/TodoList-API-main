@@ -164,8 +164,8 @@ public class TodoService : ITodoService
 
         foreach (var todo in deletedTodos)
         {
-            // 2. Bu göreve bağlı History kayıtlarını ve görevin kendisini DB'den kalıcı siliyoruz (Hard Delete)
-            _unitOfWork.Todos.DeleteAsync(todo);
+                // 2. Bu göreve bağlı History kayıtlarını ve görevin kendisini DB'den kalıcı siliyoruz (Hard Delete)
+                await _unitOfWork.Todos.DeleteAsync(todo);
         }
 
         await _unitOfWork.SaveChangesAsync();
