@@ -1131,6 +1131,10 @@
               "target": "Package",
               "version": "[1.8.24, )"
             },
+            "Hangfire.PostgreSql": {
+              "target": "Package",
+              "version": "[1.21.1, )"
+            },
             "Hangfire.Storage.SQLite": {
               "target": "Package",
               "version": "[0.4.3, )"

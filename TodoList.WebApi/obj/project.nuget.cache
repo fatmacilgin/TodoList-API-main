@@ -1,13 +1,16 @@
 {
   "version": 2,
-  "dgSpecHash": "fkCgQW0OYkQ=",
+  "dgSpecHash": "FQB1N/uFizQ=",
   "success": true,
   "projectFilePath": "C:\\Users\\FATMA\\OneDrive\\Masaüstü\\TodoList-API-main\\TodoList.WebApi\\TodoList.WebApi.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\FATMA\\.nuget\\packages\\bcrypt.net-next\\4.2.0\\bcrypt.net-next.4.2.0.nupkg.sha512",
+    "C:\\Users\\FATMA\\.nuget\\packages\\dapper\\2.0.123\\dapper.2.0.123.nupkg.sha512",
+    "C:\\Users\\FATMA\\.nuget\\packages\\dapper.aot\\1.0.48\\dapper.aot.1.0.48.nupkg.sha512",
     "C:\\Users\\FATMA\\.nuget\\packages\\hangfire.aspnetcore\\1.8.24\\hangfire.aspnetcore.1.8.24.nupkg.sha512",
     "C:\\Users\\FATMA\\.nuget\\packages\\hangfire.core\\1.8.24\\hangfire.core.1.8.24.nupkg.sha512",
     "C:\\Users\\FATMA\\.nuget\\packages\\hangfire.netcore\\1.8.24\\hangfire.netcore.1.8.24.nupkg.sha512",
+    "C:\\Users\\FATMA\\.nuget\\packages\\hangfire.postgresql\\1.21.1\\hangfire.postgresql.1.21.1.nupkg.sha512",
     "C:\\Users\\FATMA\\.nuget\\packages\\hangfire.storage.sqlite\\0.4.3\\hangfire.storage.sqlite.0.4.3.nupkg.sha512",
     "C:\\Users\\FATMA\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\FATMA\\.nuget\\packages\\microsoft.aspnetcore.authentication.jwtbearer\\10.0.10\\microsoft.aspnetcore.authentication.jwtbearer.10.0.10.nupkg.sha512",

@@ -32,3 +32,4 @@ C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.Entities\obj\Debug
 C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.Entities\obj\Debug\net10.0\refint\TodoList.Entities.dll
 C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.Entities\obj\Debug\net10.0\TodoList.Entities.pdb
 C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.Entities\obj\Debug\net10.0\ref\TodoList.Entities.dll
+C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.Entities\obj\Debug\net10.0\TodoList.Entities.sourcelink.json

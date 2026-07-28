@@ -44,3 +44,4 @@ C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.DataAccess\obj\Deb
 C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.DataAccess\obj\Debug\net10.0\refint\TodoList.DataAccess.dll
 C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.DataAccess\obj\Debug\net10.0\TodoList.DataAccess.pdb
 C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.DataAccess\obj\Debug\net10.0\ref\TodoList.DataAccess.dll
+C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.DataAccess\obj\Debug\net10.0\TodoList.DataAccess.sourcelink.json

@@ -589,3 +589,4 @@ C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.WebApi\obj\Debug\n
 C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.WebApi\obj\Debug\net10.0\TodoList.WebApi.pdb
 C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.WebApi\obj\Debug\net10.0\TodoList.WebApi.genruntimeconfig.cache
 C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.WebApi\obj\Debug\net10.0\ref\TodoList.WebApi.dll
+C:\Users\FATMA\OneDrive\Masaüstü\TodoList-API-main\TodoList.WebApi\obj\Debug\net10.0\TodoList.WebApi.sourcelink.json
