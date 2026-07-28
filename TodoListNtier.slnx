@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/Solution Items/" />
+  <Project Path="TodoList.Business/TodoList.Business.csproj" />
+  <Project Path="TodoList.DataAccess/TodoList.DataAccess.csproj" />
+  <Project Path="TodoList.Entities/TodoList.Entities.csproj" />
+  <Project Path="TodoList.WebApi/TodoList.WebApi.csproj" />
+</Solution>
