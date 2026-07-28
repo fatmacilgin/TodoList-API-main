@@ -69,6 +69,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Hangfire Yapılandırması
 // Hangfire Server worker sayısını Free tier için düşürüyoruz (Varsayılan 20 çok fazla RAM harcar!)
+// Hangfire Servisleri (Worker sayısını 2'ye düşürerek RAM kullanımını drastik azaltıyoruz)
 if (!string.IsNullOrEmpty(formattedConnectionString))
 {
     builder.Services.AddHangfire(config => config
@@ -82,7 +83,7 @@ if (!string.IsNullOrEmpty(formattedConnectionString))
                 PrepareSchemaIfNecessary = true
             }));
 
-    // Worker sayısını varsayılan 20'den 2-3'e düşürerek RAM kullanımını drastik şekilde azaltıyoruz:
+    // Free Tier RAM dostu worker ayarı:
     builder.Services.AddHangfireServer(options =>
     {
         options.WorkerCount = 2;

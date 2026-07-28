@@ -18,11 +18,12 @@ RUN dotnet publish "TodoList.WebApi.csproj" -c Release -o /app/publish /p:UseApp
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
-# Native kütüphane kilitlenmelerini önleyen paket
-RUN apt-get update && apt-get install -y libicu-dev && rm -rf /var/lib/apt/lists/*
+# Status 139 (Segmentation Fault) çözüm paketi (Linux C kütüphaneleri için)
+RUN apt-get update && apt-get install -y --no-install-recommends libicu-dev && rm -rf /var/lib/apt/lists/*
 
 COPY --from=publish /app/publish .
 
+# Render varsayýlan portu
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
