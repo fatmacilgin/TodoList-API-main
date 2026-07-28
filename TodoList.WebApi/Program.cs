@@ -59,16 +59,16 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     ));
 
 // Hangfire Servisleri (PostgreSQL için Yapılandırma)
-if (!string.IsNullOrEmpty(connectionString))
-{
-    builder.Services.AddHangfire(config => config
-        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-        .UseSimpleAssemblyNameTypeSerializer()
-        .UseRecommendedSerializerSettings()
-        .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString)));
+//if (!string.IsNullOrEmpty(connectionString))
+//{
+//    builder.Services.AddHangfire(config => config
+//        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+//        .UseSimpleAssemblyNameTypeSerializer()
+//        .UseRecommendedSerializerSettings()
+//        .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString)));
 
-    builder.Services.AddHangfireServer();
-}
+//    builder.Services.AddHangfireServer();
+//}
 
 // Dependency Injection (Bağımlılıkların Enjeksiyonu)
 builder.Services.AddScoped<ITodoRepository, TodoRepository>();
