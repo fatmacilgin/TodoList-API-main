@@ -68,6 +68,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     ));
 
 // Hangfire Yapılandırması
+// Hangfire Server worker sayısını Free tier için düşürüyoruz (Varsayılan 20 çok fazla RAM harcar!)
 if (!string.IsNullOrEmpty(formattedConnectionString))
 {
     builder.Services.AddHangfire(config => config
@@ -78,10 +79,14 @@ if (!string.IsNullOrEmpty(formattedConnectionString))
             options.UseNpgsqlConnection(formattedConnectionString),
             new PostgreSqlStorageOptions
             {
-                PrepareSchemaIfNecessary = true // Tablolar yoksa otomatik oluşturur
+                PrepareSchemaIfNecessary = true
             }));
 
-    builder.Services.AddHangfireServer();
+    // Worker sayısını varsayılan 20'den 2-3'e düşürerek RAM kullanımını drastik şekilde azaltıyoruz:
+    builder.Services.AddHangfireServer(options =>
+    {
+        options.WorkerCount = 2;
+    });
 }
 
 // Dependency Injection
@@ -99,12 +104,20 @@ var app = builder.Build();
 // CORS her zaman en üstte olmalı
 app.UseCors("AllowAll");
 
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+if (app.Environment.IsDevelopment())
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Todo API v1");
-    c.RoutePrefix = string.Empty; // Swagger ana sayfada açılır
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Todo API v1");
+        c.RoutePrefix = string.Empty;
+    });
+}
+else
+{
+    // Production'da RAM tasarrufu için SwaggerUI kapatabilir veya sadece JSON kalmasını sağlayabilirsiniz
+    app.UseSwagger();
+}
 
 // Veritabanı Migration ve Background Job Başlatma
 try
@@ -112,11 +125,8 @@ try
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        // Veritabanı tablolarını otomatik oluşturur/günceller
         db.Database.Migrate();
 
-        // Hangfire Recurring Job Tanımlama
         var recurringJobManager = scope.ServiceProvider.GetService<IRecurringJobManager>();
         if (recurringJobManager != null)
         {
@@ -130,7 +140,7 @@ try
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"[KRİTİK HATA] DB/Hangfire Başlatılamadı: {ex.Message}");
+    Console.WriteLine($"[DB MIGRATION HAKKINDA]: {ex.Message}");
 }
 
 app.UseAuthentication();
