@@ -8,25 +8,24 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
-// PostgreSQL Npgsql sürücüsünün tarih kısıtlamasını gevşetir
+
+// ---------------------------------------------------------
+// 0. AYARLAR & AYIKLAMA (Render & Npgsql Uyumluluğu)
+// ---------------------------------------------------------
+// PostgreSQL Npgsql sürücüsünün tarih kısıtlamasını gevşetir (UTC hatalarını engeller)
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
-// ---------------------------------------------------------
-// 0. CONNECTION STRING FORMAT DÖNÜŞTÜRÜCÜ (Render Uyumluluğu)
-// ---------------------------------------------------------
-var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
 // Render'dan gelen "postgres://" URI formatını Npgsql formatına dönüştürür
+var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 string formattedConnectionString = ConvertPostgresConnectionString(rawConnectionString);
 
 // ---------------------------------------------------------
-// 1. SERVİSLER
+// 1. SERVİSLERİN EKLENMESİ (Dependency Injection)
 // ---------------------------------------------------------
-var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["Secret"] ?? "BuCokGizliVeUzunBirSecretKeyOlmaliRenderTarafinaEkle!";
-var key = Encoding.UTF8.GetBytes(secretKey);
 
+// Core & Controller Servisleri
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
@@ -43,6 +42,10 @@ builder.Services.AddCors(options =>
 });
 
 // JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var secretKey = jwtSettings["Secret"] ?? "BuCokGizliVeUzunBirSecretKeyOlmaliRenderTarafinaEkle!";
+var key = Encoding.UTF8.GetBytes(secretKey);
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -67,9 +70,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         b => b.MigrationsAssembly("TodoList.DataAccess")
     ));
 
-// Hangfire Yapılandırması
-// Hangfire Server worker sayısını Free tier için düşürüyoruz (Varsayılan 20 çok fazla RAM harcar!)
-// Hangfire Servisleri (Worker sayısını 2'ye düşürerek RAM kullanımını drastik azaltıyoruz)
+// Hangfire Yapılandırması (RAM dostu 2 worker ile)
 if (!string.IsNullOrEmpty(formattedConnectionString))
 {
     builder.Services.AddHangfire(config => config
@@ -83,14 +84,14 @@ if (!string.IsNullOrEmpty(formattedConnectionString))
                 PrepareSchemaIfNecessary = true
             }));
 
-    // Free Tier RAM dostu worker ayarı:
+    // Worker sayısını varsayılan 20'den 2'ye düşürerek RAM kullanımını drastik şekilde azaltıyoruz
     builder.Services.AddHangfireServer(options =>
     {
         options.WorkerCount = 2;
     });
 }
 
-// Dependency Injection
+// Uygulama Katmanı DI Tanımlamaları
 builder.Services.AddScoped<ITodoRepository, TodoRepository>();
 builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddScoped<ITodoHistoryRepository, TodoHistoryRepository>();
@@ -99,67 +100,78 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 var app = builder.Build();
 
 // ---------------------------------------------------------
-// 2. MIDDLEWARE SIRALAMASI
+// 2. MIDDLEWARE ZİNCİRİ
 // ---------------------------------------------------------
 
-// CORS her zaman en üstte olmalı
+// CORS her zaman en üst sırada yer almalıdır
 app.UseCors("AllowAll");
 
-if (app.Environment.IsDevelopment())
+// Swagger UI Yapılandırması
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Todo API v1");
-        c.RoutePrefix = string.Empty;
-    });
-}
-else
-{
-    // Production'da RAM tasarrufu için SwaggerUI kapatabilir veya sadece JSON kalmasını sağlayabilirsiniz
-    app.UseSwagger();
-}
-
-// Veritabanı Migration ve Background Job Başlatma
-try
-{
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        db.Database.Migrate();
-
-        var recurringJobManager = scope.ServiceProvider.GetService<IRecurringJobManager>();
-        if (recurringJobManager != null)
-        {
-            recurringJobManager.AddOrUpdate<ITodoService>(
-                "nightly-database-cleanup-job",
-                service => service.CleanOldDeletedTodosAsync(),
-                Cron.Daily(3, 0)
-            );
-        }
-    }
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"[DB MIGRATION HAKKINDA]: {ex.Message}");
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Todo API v1");
+    c.RoutePrefix = string.Empty; // Swagger doğrudan ana dizinde (/) açılır
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Endpoint Mapping
+// Minimal API ve Controller Route Mapping
 app.MapControllers();
 app.MapAuthEndpoints();
 app.MapTodoEndpoints();
 
+// ---------------------------------------------------------
+// 3. ARKA PLAN İŞLEMLERİ (Kilitlenmeyi Önleyen Asenkron Başlatma)
+// ---------------------------------------------------------
+// Web sunucusu ayağa kalktıktan SONRA veritabanı migration'ını başlatır (Status 139 önleyici)
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    Task.Run(() =>
+    {
+        try
+        {
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                Console.WriteLine("[INFO] Database Migration başlatılıyor...");
+                db.Database.Migrate();
+                Console.WriteLine("[INFO] Database Migration tamamlandı.");
+
+                var recurringJobManager = scope.ServiceProvider.GetService<IRecurringJobManager>();
+                if (recurringJobManager != null)
+                {
+                    recurringJobManager.AddOrUpdate<ITodoService>(
+                        "nightly-database-cleanup-job",
+                        service => service.CleanOldDeletedTodosAsync(),
+                        Cron.Daily(3, 0)
+                    );
+                    Console.WriteLine("[INFO] Hangfire Job tanımlandı.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[KRİTİK HATA] DB/Hangfire Başlatılamadı: {ex.Message}");
+        }
+    });
+});
+
 app.Run();
 
 // ---------------------------------------------------------
-// YARDIMCI METOT: Render URL Formatını Npgsql Formatına Çevirir
+// YARDIMCI METOTLAR
 // ---------------------------------------------------------
 static string ConvertPostgresConnectionString(string connectionString)
 {
-    if (string.IsNullOrEmpty(connectionString) || !connectionString.StartsWith("postgres://"))
+    if (string.IsNullOrWhiteSpace(connectionString))
+        return connectionString;
+
+    connectionString = connectionString.Trim();
+
+    if (!connectionString.StartsWith("postgres://") && !connectionString.StartsWith("postgresql://"))
     {
         return connectionString;
     }
