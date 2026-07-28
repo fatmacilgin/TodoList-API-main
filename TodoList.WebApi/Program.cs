@@ -3,24 +3,35 @@ using TodoList.DataAccess;
 using TodoList.Business;
 using TodoList.WebApi.Endpoints;
 using Hangfire;
-using Hangfire.PostgreSql; // Hangfire PostgreSQL paketini kullandığınızdan emin olun
+using Hangfire.PostgreSql;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-
+using Npgsql;
+// PostgreSQL Npgsql sürücüsünün tarih kısıtlamasını gevşetir
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
 
-// JWT Konfigürasyonu
+// ---------------------------------------------------------
+// 0. CONNECTION STRING FORMAT DÖNÜŞTÜRÜCÜ (Render Uyumluluğu)
+// ---------------------------------------------------------
+var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Render'dan gelen "postgres://" URI formatını Npgsql formatına dönüştürür
+string formattedConnectionString = ConvertPostgresConnectionString(rawConnectionString);
+
+// ---------------------------------------------------------
+// 1. SERVİSLER
+// ---------------------------------------------------------
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Secret"] ?? "BuCokGizliVeUzunBirSecretKeyOlmaliRenderTarafinaEkle!";
 var key = Encoding.UTF8.GetBytes(secretKey);
 
-// 1. SERVİSLER
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
 
-// CORS (Her şeye izin ver)
+// CORS Yapılandırması
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -31,7 +42,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Authentication & JWT
+// JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -49,28 +60,31 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// PostgreSQL Veritabanı Bağlantısı
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
+// PostgreSQL EF Core Bağlantısı
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
-        connectionString,
+        formattedConnectionString,
         b => b.MigrationsAssembly("TodoList.DataAccess")
     ));
 
-// Hangfire Servisleri (PostgreSQL için Yapılandırma)
-//if (!string.IsNullOrEmpty(connectionString))
-//{
-//    builder.Services.AddHangfire(config => config
-//        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-//        .UseSimpleAssemblyNameTypeSerializer()
-//        .UseRecommendedSerializerSettings()
-//        .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString)));
+// Hangfire Yapılandırması
+if (!string.IsNullOrEmpty(formattedConnectionString))
+{
+    builder.Services.AddHangfire(config => config
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UsePostgreSqlStorage(options =>
+            options.UseNpgsqlConnection(formattedConnectionString),
+            new PostgreSqlStorageOptions
+            {
+                PrepareSchemaIfNecessary = true // Tablolar yoksa otomatik oluşturur
+            }));
 
-//    builder.Services.AddHangfireServer();
-//}
+    builder.Services.AddHangfireServer();
+}
 
-// Dependency Injection (Bağımlılıkların Enjeksiyonu)
+// Dependency Injection
 builder.Services.AddScoped<ITodoRepository, TodoRepository>();
 builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddScoped<ITodoHistoryRepository, TodoHistoryRepository>();
@@ -78,27 +92,31 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 var app = builder.Build();
 
+// ---------------------------------------------------------
 // 2. MIDDLEWARE SIRALAMASI
+// ---------------------------------------------------------
+
+// CORS her zaman en üstte olmalı
 app.UseCors("AllowAll");
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Todo API v1");
-    c.RoutePrefix = string.Empty; // Swagger'ı ana dizinde (/) açar
+    c.RoutePrefix = string.Empty; // Swagger ana sayfada açılır
 });
 
-// 🔴 VERİTABANI VE HANGFIRE MIGRATION
+// Veritabanı Migration ve Background Job Başlatma
 try
 {
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        
-        // Veritabanı tablolarını ve migration'ları otomatik oluşturur
+
+        // Veritabanı tablolarını otomatik oluşturur/günceller
         db.Database.Migrate();
 
-        // Hangfire Job Tanımlama
+        // Hangfire Recurring Job Tanımlama
         var recurringJobManager = scope.ServiceProvider.GetService<IRecurringJobManager>();
         if (recurringJobManager != null)
         {
@@ -115,17 +133,39 @@ catch (Exception ex)
     Console.WriteLine($"[KRİTİK HATA] DB/Hangfire Başlatılamadı: {ex.Message}");
 }
 
-// Güvenlik Middleware'leri
 app.UseAuthentication();
 app.UseAuthorization();
 
-// API Endpoint Yönlendirmeleri
+// Endpoint Mapping
 app.MapControllers();
 app.MapAuthEndpoints();
 app.MapTodoEndpoints();
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    dbContext.Database.Migrate(); // Tablolar yoksa otomatik oluşturur
-}
+
 app.Run();
+
+// ---------------------------------------------------------
+// YARDIMCI METOT: Render URL Formatını Npgsql Formatına Çevirir
+// ---------------------------------------------------------
+static string ConvertPostgresConnectionString(string connectionString)
+{
+    if (string.IsNullOrEmpty(connectionString) || !connectionString.StartsWith("postgres://"))
+    {
+        return connectionString;
+    }
+
+    var uri = new Uri(connectionString);
+    var userInfo = uri.UserInfo.Split(':');
+
+    var builder = new NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.Port > 0 ? uri.Port : 5432,
+        Username = userInfo[0],
+        Password = userInfo.Length > 1 ? userInfo[1] : "",
+        Database = uri.AbsolutePath.TrimStart('/'),
+        SslMode = SslMode.Require,
+        TrustServerCertificate = true
+    };
+
+    return builder.ToString();
+}

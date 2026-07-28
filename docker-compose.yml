@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Veritabanı Servisi
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: todo_postgres
+    environment:
+      POSTGRES_DB: TodoDb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # 2. .NET Web API Servisi
+  webapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: todo_api
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=postgres-db;Database=TodoDb;Username=postgres;Password=5858
+    depends_on:
+      - postgres-db
+
+volumes:
+  postgres_data:
