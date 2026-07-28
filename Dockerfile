@@ -1,18 +1,23 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# Runtime imajý (.NET 10 Preview)
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS base
+WORKDIR /app
+
+# SDK imajý (.NET 10 Preview)
+FROM mcr.microsoft.com/dotnet/sdk:10.0-preview AS build
 WORKDIR /src
 
-# Tüm klasör yapýsýný içeri al
-COPY . .
+# Proje kopyalama ve restore iþlemleri
+COPY ["TodoList.WebApi/TodoList.WebApi.csproj", "TodoList.WebApi/"]
+COPY ["TodoList.DataAccess/TodoList.DataAccess.csproj", "TodoList.DataAccess/"]
+COPY ["TodoList.Business/TodoList.Business.csproj", "TodoList.Business/"]
+COPY ["TodoList.Entities/TodoList.Entities.csproj", "TodoList.Entities/"]
 
-# Solution veya WebApi projesini doðrudan restore ve publish et
 RUN dotnet restore "TodoList.WebApi/TodoList.WebApi.csproj"
-RUN dotnet publish "TodoList.WebApi/TodoList.WebApi.csproj" -c Release -o /app/out
+COPY . .
+WORKDIR "/src/TodoList.WebApi"
+RUN dotnet publish "TodoList.WebApi.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM base AS final
 WORKDIR /app
-COPY --from=build /app/out .
-
-ENV ASPNETCORE_URLS=http://+:8080
-EXPOSE 8080
-
+COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "TodoList.WebApi.dll"]

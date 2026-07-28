@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TodoList.Entities")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7071d894ff8f8e0da543fd26738da5cec3b02b26")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c8b76b66482f81a96b9b2cc99b7cdf32f68f0b07")]
 [assembly: System.Reflection.AssemblyProductAttribute("TodoList.Entities")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TodoList.Entities")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
