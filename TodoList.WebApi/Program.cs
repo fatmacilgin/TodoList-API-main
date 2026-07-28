@@ -123,5 +123,9 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapAuthEndpoints();
 app.MapTodoEndpoints();
-
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    dbContext.Database.Migrate(); // Tablolar yoksa otomatik oluşturur
+}
 app.Run();
