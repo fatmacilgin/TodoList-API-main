@@ -3,14 +3,17 @@ using TodoList.DataAccess;
 using TodoList.Business;
 using TodoList.WebApi.Endpoints;
 using Hangfire;
+using Hangfire.PostgreSql; // Hangfire PostgreSQL paketini kullandığınızdan emin olun
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// JWT Konfigürasyonu
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"]!);
+var secretKey = jwtSettings["Secret"] ?? "BuCokGizliVeUzunBirSecretKeyOlmaliRenderTarafinaEkle!";
+var key = Encoding.UTF8.GetBytes(secretKey);
 
 // 1. SERVİSLER
 builder.Services.AddEndpointsApiExplorer();
@@ -38,30 +41,34 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettings["Issuer"],
-            ValidAudience = jwtSettings["Audience"],
+            ValidIssuer = jwtSettings["Issuer"] ?? "TodoListAPI",
+            ValidAudience = jwtSettings["Audience"] ?? "TodoListUser",
             IssuerSigningKey = new SymmetricSecurityKey(key)
         };
     });
 
 builder.Services.AddAuthorization();
 
-// SQLite Veritabanı
+// PostgreSQL Veritabanı Bağlantısı
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
+        connectionString,
         b => b.MigrationsAssembly("TodoList.DataAccess")
     ));
 
-// Hangfire Servisleri
-//var hangfireDbPath = Path.Combine(AppContext.BaseDirectory, "hangfire.db");
-//builder.Services.AddHangfire(config => config
-//    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-//    .UseSimpleAssemblyNameTypeSerializer()
-//    .UseRecommendedSerializerSettings()
-//    .usepostg(hangfireDbPath));
+// Hangfire Servisleri (PostgreSQL için Yapılandırma)
+if (!string.IsNullOrEmpty(connectionString))
+{
+    builder.Services.AddHangfire(config => config
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString)));
 
-builder.Services.AddHangfireServer();
+    builder.Services.AddHangfireServer();
+}
 
 // Dependency Injection (Bağımlılıkların Enjeksiyonu)
 builder.Services.AddScoped<ITodoRepository, TodoRepository>();
@@ -69,38 +76,38 @@ builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddScoped<ITodoHistoryRepository, TodoHistoryRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-// 💡 NOT: Eğer Auth işlemlerini Servis/Repository katmanına taşıdıysan buraya eklemelisin:
-// builder.Services.AddScoped<IUserRepository, UserRepository>();
-// builder.Services.AddScoped<IAuthService, AuthService>();
-
 var app = builder.Build();
 
 // 2. MIDDLEWARE SIRALAMASI
-app.UseCors("AllowAll"); // Cross-Origin İstekleri için En Üste Alındı
+app.UseCors("AllowAll");
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Todo API v1");
-    c.RoutePrefix = string.Empty;
+    c.RoutePrefix = string.Empty; // Swagger'ı ana dizinde (/) açar
 });
 
-// 🔴 VERİTABANI VE HANGFIRE BAŞLATMA
+// 🔴 VERİTABANI VE HANGFIRE MIGRATION
 try
 {
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        // EnsureCreated yerine Migration çalıştırıyoruz ki yeni eklediğimiz Users tablosu gelsin
+        // Veritabanı tablolarını ve migration'ları otomatik oluşturur
         db.Database.Migrate();
 
-        var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
-        recurringJobManager.AddOrUpdate<ITodoService>(
-            "nightly-database-cleanup-job",
-            service => service.CleanOldDeletedTodosAsync(),
-            Cron.Daily(3, 0)
-        );
+        // Hangfire Job Tanımlama
+        var recurringJobManager = scope.ServiceProvider.GetService<IRecurringJobManager>();
+        if (recurringJobManager != null)
+        {
+            recurringJobManager.AddOrUpdate<ITodoService>(
+                "nightly-database-cleanup-job",
+                service => service.CleanOldDeletedTodosAsync(),
+                Cron.Daily(3, 0)
+            );
+        }
     }
 }
 catch (Exception ex)
@@ -109,14 +116,12 @@ catch (Exception ex)
 }
 
 // Güvenlik Middleware'leri
-app.UseAuthentication(); // 🔴 Kimlik Doğrulama
-app.UseAuthorization();  // 🔴 Yetkilendirme
-
-//app.UseHangfireDashboard("/hangfire");
+app.UseAuthentication();
+app.UseAuthorization();
 
 // API Endpoint Yönlendirmeleri
 app.MapControllers();
-app.MapAuthEndpoints(); // 🔴 Yorum satırından çıkarıldı!
+app.MapAuthEndpoints();
 app.MapTodoEndpoints();
 
 app.Run();
