@@ -112,7 +112,7 @@ catch (Exception ex)
 app.UseAuthentication(); // 🔴 Kimlik Doğrulama
 app.UseAuthorization();  // 🔴 Yetkilendirme
 
-app.UseHangfireDashboard("/hangfire");
+//app.UseHangfireDashboard("/hangfire");
 
 // API Endpoint Yönlendirmeleri
 app.MapControllers();
