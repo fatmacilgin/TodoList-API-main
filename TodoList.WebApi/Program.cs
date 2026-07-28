@@ -94,7 +94,7 @@ try
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
+        
         // Veritabanı tablolarını ve migration'ları otomatik oluşturur
         db.Database.Migrate();
 

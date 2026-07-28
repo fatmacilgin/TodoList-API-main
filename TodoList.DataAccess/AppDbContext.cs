@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
-
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using TodoList.Entities;
 
@@ -11,10 +12,9 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    public DbSet<Todo> Todos => Set<Todo>(); // yeni yöntem: null gibi compiler errorlarlakarışılaşılmaz.
-
-    public DbSet<User> Users { get; set; }
-    public DbSet<TodoHistory> TodoHistories { get; set; }// eski yöntem
+    public DbSet<Todo> Todos => Set<Todo>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<TodoHistory> TodoHistories => Set<TodoHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,23 +27,31 @@ public class AppDbContext : DbContext
             .HasForeignKey(t => t.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // 2. Todo ve TodoHistory İlişkisi (Çakışmayı önlemek için FK'yı açıkça belirtiyoruz)
+        // 2. Todo ve TodoHistory İlişkisi
         modelBuilder.Entity<TodoHistory>()
-            .HasOne(h => h.Todo)            // Varsa navigation property adın (ör: h.Todo)
-            .WithMany()                      // Veya .WithMany(t => t.Histories)
-            .HasForeignKey(h => h.TodoId)    // Foreign Key alanını doğrudan bağlıyoruz
+            .HasOne(h => h.Todo)
+            .WithMany()
+            .HasForeignKey(h => h.TodoId)
             .OnDelete(DeleteBehavior.Cascade);
     }
+
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        // Eklenen yeni Todo'ları yakala
         var addedTodos = ChangeTracker.Entries<Todo>()
             .Where(e => e.State == EntityState.Added)
             .Select(e => e.Entity)
             .ToList();
 
-        // Tek SQL transaction ile hem Todo hem de History kaydedilir!
+        foreach (var todo in addedTodos)
+        {
+            TodoHistories.Add(new TodoHistory
+            {
+                Todo = todo,
+                Status = "Görev oluşturuldu",
+                CreatedDate = DateTime.UtcNow
+            });
+        }
+
         return await base.SaveChangesAsync(cancellationToken);
     }
-
 }
