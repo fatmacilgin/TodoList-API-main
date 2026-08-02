@@ -44,6 +44,81 @@
     ]
   },
   {
+    "ContainingType": "TodoList.WebApi.Endpoints.SubTaskEndpoints\u002B\u003C\u003Ec",
+    "Method": "\u003CMapSubTaskEndpoints\u003Eb__0_0",
+    "RelativePath": "api/subtasks/",
+    "HttpMethod": "POST",
+    "IsController": false,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "TodoList.Entities.DTOs.SubTaskCreateDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Void",
+        "MediaTypes": [],
+        "StatusCode": 200
+      }
+    ],
+    "Tags": [
+      "SubTasks"
+    ]
+  },
+  {
+    "ContainingType": "TodoList.WebApi.Endpoints.SubTaskEndpoints\u002B\u003C\u003Ec",
+    "Method": "\u003CMapSubTaskEndpoints\u003Eb__0_2",
+    "RelativePath": "api/subtasks/{id:int}",
+    "HttpMethod": "DELETE",
+    "IsController": false,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Void",
+        "MediaTypes": [],
+        "StatusCode": 200
+      }
+    ],
+    "Tags": [
+      "SubTasks"
+    ]
+  },
+  {
+    "ContainingType": "TodoList.WebApi.Endpoints.SubTaskEndpoints\u002B\u003C\u003Ec",
+    "Method": "\u003CMapSubTaskEndpoints\u003Eb__0_1",
+    "RelativePath": "api/subtasks/{id:int}/toggle",
+    "HttpMethod": "PUT",
+    "IsController": false,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Void",
+        "MediaTypes": [],
+        "StatusCode": 200
+      }
+    ],
+    "Tags": [
+      "SubTasks"
+    ]
+  },
+  {
     "ContainingType": "TodoList.WebApi.Endpoints.TodoEndpoints\u002B\u003C\u003Ec",
     "Method": "\u003CMapTodoEndpoints\u003Eb__0_0",
     "RelativePath": "api/todos/",
@@ -162,6 +237,92 @@
     "Parameters": [
       {
         "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Void",
+        "MediaTypes": [],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "TodoList.WebApi.Endpoints.TodoEndpoints\u002B\u003C\u003Ec",
+    "Method": "\u003CMapTodoEndpoints\u003Eb__0_6",
+    "RelativePath": "api/todos/{todoId}/subtasks",
+    "HttpMethod": "POST",
+    "IsController": false,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "todoId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "TodoList.Entities.DTOs.SubTaskCreateDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Void",
+        "MediaTypes": [],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "TodoList.WebApi.Endpoints.TodoEndpoints\u002B\u003C\u003Ec",
+    "Method": "\u003CMapTodoEndpoints\u003Eb__0_7",
+    "RelativePath": "api/todos/{todoId}/subtasks/{subTaskId}",
+    "HttpMethod": "PUT",
+    "IsController": false,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "todoId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "subTaskId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "TodoList.Entities.DTOs.SubTaskDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Void",
+        "MediaTypes": [],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "TodoList.WebApi.Endpoints.TodoEndpoints\u002B\u003C\u003Ec",
+    "Method": "\u003CMapTodoEndpoints\u003Eb__0_8",
+    "RelativePath": "api/todos/{todoId}/subtasks/{subTaskId}",
+    "HttpMethod": "DELETE",
+    "IsController": false,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "todoId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "subTaskId",
         "Type": "System.Int32",
         "IsRequired": true
       }

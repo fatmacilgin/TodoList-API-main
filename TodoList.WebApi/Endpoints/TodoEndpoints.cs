@@ -12,11 +12,15 @@ public static class TodoEndpoints
     {
         var group = app.MapGroup("/api/todos").RequireAuthorization();
 
-        // 1. GET: Tüm Todolar
+        // 1. GET: Tüm Todolar (SubTasks ile birlikte)
         group.MapGet("/", async (ClaimsPrincipal userClaims, AppDbContext db) =>
         {
             var userId = GetUserId(userClaims);
-            var todos = await db.Todos.Where(t => t.UserId == userId).ToListAsync();
+            var todos = await db.Todos
+                .Include(t => t.SubTasks)
+                .Where(t => t.UserId == userId)
+                .ToListAsync();
+
             return Results.Ok(todos);
         });
 
@@ -24,7 +28,10 @@ public static class TodoEndpoints
         group.MapGet("/{id}", async (int id, ClaimsPrincipal userClaims, AppDbContext db) =>
         {
             var userId = GetUserId(userClaims);
-            var todo = await db.Todos.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+            var todo = await db.Todos
+                .Include(t => t.SubTasks)
+                .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+
             return todo is not null ? Results.Ok(todo) : Results.NotFound("Görev bulunamadı.");
         });
 
@@ -53,14 +60,13 @@ public static class TodoEndpoints
             var todo = new Todo
             {
                 Title = dto.Title,
-                IsCompleted = 0, // Yeni eklenen görev varsayılan olarak 0 (tamamlanmadı)
+                IsCompleted = false, // 🎯 Temiz bool kullanımı
                 UserId = userId
             };
 
             db.Todos.Add(todo);
             await db.SaveChangesAsync();
 
-            // 📜 HISTORY KAYDI
             var history = new TodoHistory
             {
                 TodoId = todo.Id,
@@ -84,27 +90,23 @@ public static class TodoEndpoints
 
             string changeDescription = "";
 
-            // Başlık Değişikliği
             if (todo.Title != dto.Title)
             {
                 changeDescription = $"Başlık değiştirildi: '{todo.Title}' ➔ '{dto.Title}'";
             }
 
-            // Durum Değişikliği (int karşılaştırması: 1 veya 0)
-            int newIsCompleted = Convert.ToInt32(dto.IsCompleted); // DTO'dan bool gelse bile int'e çevrilir
-            if (todo.IsCompleted != newIsCompleted)
+            // 🎯 Doğrudan bool karşılaştırması
+            if (todo.IsCompleted != dto.IsCompleted)
             {
-                var statusText = newIsCompleted == 1 ? "Tamamlandı" : "Tamamlanmadı (Geri Alındı)";
+                var statusText = dto.IsCompleted ? "Tamamlandı" : "Tamamlanmadı (Geri Alındı)";
                 changeDescription += string.IsNullOrEmpty(changeDescription)
                     ? $"Durum değiştirildi: {statusText}"
                     : $" ve Durum değiştirildi: {statusText}";
             }
 
-            // Değerleri Güncelle
             todo.Title = dto.Title;
-            todo.IsCompleted = newIsCompleted;
+            todo.IsCompleted = dto.IsCompleted;
 
-            // 📜 DEĞİŞİKLİK VARSA HISTORY EKLE
             if (!string.IsNullOrEmpty(changeDescription))
             {
                 var history = new TodoHistory
@@ -141,6 +143,98 @@ public static class TodoEndpoints
             await db.SaveChangesAsync();
 
             return Results.Ok("Görev başarıyla silindi.");
+        });
+
+        // =======================================================
+        // 🚀 SUBTASK ENDPOINT'LERİ (bool)
+        // =======================================================
+
+        // 7. POST: Todo'ya Alt Görev Ekle + History
+        group.MapPost("/{todoId}/subtasks", async (int todoId, SubTaskCreateDto dto, ClaimsPrincipal userClaims, AppDbContext db) =>
+        {
+            var userId = GetUserId(userClaims);
+
+            var todo = await db.Todos.FirstOrDefaultAsync(t => t.Id == todoId && t.UserId == userId);
+            if (todo is null)
+                return Results.NotFound("Ana görev bulunamadı veya yetkiniz yok.");
+
+            var subTask = new SubTask
+            {
+                Title = dto.Title,
+                IsCompleted = false, // 🎯 bool
+                TaskId = todoId
+            };
+
+            db.SubTasks.Add(subTask);
+
+            var history = new TodoHistory
+            {
+                TodoId = todoId,
+                Status = $"Alt görev eklendi: '{subTask.Title}'",
+                CreatedDate = DateTime.Now
+            };
+            db.TodoHistories.Add(history);
+
+            await db.SaveChangesAsync();
+            return Results.Created($"/api/todos/{todoId}/subtasks/{subTask.Id}", subTask);
+        });
+
+        // 8. PUT: Alt Görev Güncelle + History
+        group.MapPut("/{todoId}/subtasks/{subTaskId}", async (int todoId, int subTaskId, SubTaskDto dto, ClaimsPrincipal userClaims, AppDbContext db) =>
+        {
+            var userId = GetUserId(userClaims);
+
+            var todoExists = await db.Todos.AnyAsync(t => t.Id == todoId && t.UserId == userId);
+            if (!todoExists)
+                return Results.NotFound("Ana görev bulunamadı veya yetkiniz yok.");
+
+            var subTask = await db.SubTasks.FirstOrDefaultAsync(st => st.Id == subTaskId && st.TaskId == todoId);
+            if (subTask is null)
+                return Results.NotFound("Alt görev bulunamadı.");
+
+            string statusText = dto.IsCompleted ? "Tamamlandı" : "Tamamlanmadı yapıldı";
+
+            var history = new TodoHistory
+            {
+                TodoId = todoId,
+                Status = $"Alt görev '{subTask.Title}' durumu güncellendi: {statusText}",
+                CreatedDate = DateTime.Now
+            };
+
+            subTask.Title = dto.Title;
+            subTask.IsCompleted = dto.IsCompleted;
+
+            db.TodoHistories.Add(history);
+            await db.SaveChangesAsync();
+
+            return Results.NoContent();
+        });
+
+        // 9. DELETE: Alt Görev Sil + History
+        group.MapDelete("/{todoId}/subtasks/{subTaskId}", async (int todoId, int subTaskId, ClaimsPrincipal userClaims, AppDbContext db) =>
+        {
+            var userId = GetUserId(userClaims);
+
+            var todoExists = await db.Todos.AnyAsync(t => t.Id == todoId && t.UserId == userId);
+            if (!todoExists)
+                return Results.NotFound("Ana görev bulunamadı veya yetkiniz yok.");
+
+            var subTask = await db.SubTasks.FirstOrDefaultAsync(st => st.Id == subTaskId && st.TaskId == todoId);
+            if (subTask is null)
+                return Results.NotFound("Silinecek alt görev bulunamadı.");
+
+            var history = new TodoHistory
+            {
+                TodoId = todoId,
+                Status = $"Alt görev silindi: '{subTask.Title}'",
+                CreatedDate = DateTime.Now
+            };
+            db.TodoHistories.Add(history);
+
+            db.SubTasks.Remove(subTask);
+            await db.SaveChangesAsync();
+
+            return Results.Ok("Alt görev başarıyla silindi.");
         });
     }
 

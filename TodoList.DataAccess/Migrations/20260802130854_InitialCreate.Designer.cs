@@ -12,18 +12,46 @@ using TodoList.DataAccess;
 namespace TodoList.DataAccess.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260728132203_InitialPostgres")]
-    partial class InitialPostgres
+    [Migration("20260802130854_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.10")
+                .HasAnnotation("ProductVersion", "8.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("TodoList.Entities.SubTask", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("TaskId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("SubTasks");
+                });
 
             modelBuilder.Entity("TodoList.Entities.Todo", b =>
                 {
@@ -34,16 +62,16 @@ namespace TodoList.DataAccess.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
-                    b.Property<int>("IsCompleted")
-                        .HasColumnType("integer");
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastModificationDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -68,7 +96,7 @@ namespace TodoList.DataAccess.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -93,7 +121,7 @@ namespace TodoList.DataAccess.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("BirthDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -116,6 +144,17 @@ namespace TodoList.DataAccess.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("TodoList.Entities.SubTask", b =>
+                {
+                    b.HasOne("TodoList.Entities.Todo", "Task")
+                        .WithMany("SubTasks")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Task");
+                });
+
             modelBuilder.Entity("TodoList.Entities.Todo", b =>
                 {
                     b.HasOne("TodoList.Entities.User", "User")
@@ -136,6 +175,11 @@ namespace TodoList.DataAccess.Migrations
                         .IsRequired();
 
                     b.Navigation("Todo");
+                });
+
+            modelBuilder.Entity("TodoList.Entities.Todo", b =>
+                {
+                    b.Navigation("SubTasks");
                 });
 
             modelBuilder.Entity("TodoList.Entities.User", b =>

@@ -6,5 +6,5 @@ namespace TodoList.Entities.DTOs;
 public class TodoUpdateDto
 {
     public string Title { get; set; } = string.Empty;
-    public int IsCompleted { get; set; } // Sadece int ve noktalı virgül olacak, Clone vs. varsa sil.
+    public bool IsCompleted { get; set; } // Sadece int ve noktalı virgül olacak, Clone vs. varsa sil.
 }

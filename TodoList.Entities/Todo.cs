@@ -7,7 +7,7 @@ public class Todo
     // Mevcut alanlarınız (Bunlara dokunmuyoruz)
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
-    public int IsCompleted { get; set; }
+    public bool IsCompleted { get; set; }
 
     // YENİ ALANLAR (Güvenli Tanımlama):
 
@@ -24,4 +24,6 @@ public class Todo
     public DateTime? LastModificationDate { get; set; }
     public int UserId { get; set; }
     public User? User { get; set; }
+    // Mevcut Task entity'nizin içine ekleyin:
+    public ICollection<SubTask> SubTasks { get; set; } = new List<SubTask>();
 }

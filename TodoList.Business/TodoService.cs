@@ -22,7 +22,7 @@ public class TodoService : ITodoService
         var todo = new Todo
         {
             Title = todoCreateDto.Title,
-            IsCompleted = 0
+            IsCompleted = false // 🎯 bool varsayılan değer
         };
 
         // 1. Todo'yu ekle
@@ -64,11 +64,11 @@ public class TodoService : ITodoService
 
         // 2. Değişiklik öncesi ESKİ değerleri hafızada tutuyoruz
         string oldTitle = existingTodo.Title;
-        int oldIsCompleted = existingTodo.IsCompleted;
+        bool oldIsCompleted = existingTodo.IsCompleted; // 🎯 bool yapıldı
 
-        // 3. Yeni değerleri aktarıyoruz
+        // 3. Yeni değerleri alıyoruz
         string newTitle = todoUpdateDto.Title;
-        int newIsCompleted = todoUpdateDto.IsCompleted;
+        bool newIsCompleted = todoUpdateDto.IsCompleted; // 🎯 bool yapıldı
 
         existingTodo.Title = newTitle;
         existingTodo.IsCompleted = newIsCompleted;
@@ -76,23 +76,24 @@ public class TodoService : ITodoService
         // 4. Detaylı History Mesajı Oluşturma
         string historyStatus = "";
 
-        // A) Başlık Değiştiyse (Eski İsim -> Yeni İsim)
+        // A) Hem Başlık Hem Durum Değiştiyse
         if (oldTitle != newTitle && oldIsCompleted != newIsCompleted)
         {
-            string stateText = newIsCompleted == 1 ? "Tamamlandı" : "Tamamlanmadı";
+            string stateText = newIsCompleted ? "Tamamlandı" : "Tamamlanmadı";
             historyStatus = $"Görev başlığı '{oldTitle}' -> '{newTitle}' olarak değiştirildi ve durumu '{stateText}' yapıldı.";
         }
+        // B) Sadece Başlık Değiştiyse
         else if (oldTitle != newTitle)
         {
             historyStatus = $"Görev başlığı '{oldTitle}' iken '{newTitle}' olarak güncellendi.";
         }
-        // B) Sadece Tamamlanma Durumu Değiştiyse
+        // C) Sadece Tamamlanma Durumu Değiştiyse
         else if (oldIsCompleted != newIsCompleted)
         {
-            string stateText = newIsCompleted == 1 ? "Tamamlandı" : "Tamamlanmadı (Geri Alındı)";
+            string stateText = newIsCompleted ? "Tamamlandı" : "Tamamlanmadı (Geri Alındı)";
             historyStatus = $"'{existingTodo.Title}' görevi '{stateText}' olarak işaretlendi.";
         }
-        // C) Hiçbir Değişiklik Yapılmadıysa
+        // D) Hiçbir Değişiklik Yapılmadıysa
         else
         {
             historyStatus = $"'{existingTodo.Title}' görevi güncellendi (değişiklik yapılmadı).";
@@ -145,36 +146,107 @@ public class TodoService : ITodoService
     {
         var todo = await _todoRepository.GetByIdAsync(todoId);
 
-        if (todo != null && todo.IsCompleted == 0)
+        // 🎯 bool kontrolü (!todo.IsCompleted)
+        if (todo != null && !todo.IsCompleted)
         {
             Console.WriteLine($"[HATIRLATMA] Todo ID: {todo.Id} - '{todo.Title}' oluşturulalı tam 10 saniye oldu! Lütfen tamamlamayı unutmayın.");
         }
     }
 
     public async Task CleanOldDeletedTodosAsync()
-{
-    // 1. Soft-delete yapılmış (IsDeleted == true) görevleri çekiyoruz
-    var deletedTodos = await _unitOfWork.Todos.GetAllDeletedAsync(); 
-    // Not: Eğer repository'nizde direkt GetAllDeletedAsync yoksa, 
-    // Tümünü çekip t.IsDeleted == true olanları filtreleyebilirsiniz.
-
-    if (deletedTodos != null && deletedTodos.Any())
     {
-        int count = deletedTodos.Count;
+        var deletedTodos = await _unitOfWork.Todos.GetAllDeletedAsync();
 
-        foreach (var todo in deletedTodos)
+        if (deletedTodos != null && deletedTodos.Any())
         {
-                // 2. Bu göreve bağlı History kayıtlarını ve görevin kendisini DB'den kalıcı siliyoruz (Hard Delete)
+            int count = deletedTodos.Count;
+
+            foreach (var todo in deletedTodos)
+            {
                 await _unitOfWork.Todos.DeleteAsync(todo);
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+
+            Console.WriteLine($"🧹 [GECE TEMİZLİĞİ] {DateTime.Now:dd.MM.yyyy HH:mm} - Soft-delete yapılmış toplam {count} adet eski görev veritabanından kalıcı olarak silindi.");
         }
+        else
+        {
+            Console.WriteLine($"🧹 [GECE TEMİZLİĞİ] {DateTime.Now:dd.MM.yyyy HH:mm} - Silinecek eski görev bulunamadı. Veritabanı temiz!");
+        }
+    }
+
+    // =======================================================
+    // 🚀 SUBTASK İŞLEMLERİ (Alt Görev Metotları)
+    // =======================================================
+
+    public async Task<SubTask> AddSubTaskAsync(int todoId, SubTaskCreateDto subTaskDto)
+    {
+        var todo = await _unitOfWork.Todos.GetByIdAsync(todoId);
+        if (todo == null)
+            throw new KeyNotFoundException("Ana görev bulunamadı.");
+
+        var subTask = new SubTask
+        {
+            Title = subTaskDto.Title,
+            IsCompleted = false, // 🎯 bool
+            TaskId = todoId
+        };
+
+        await _unitOfWork.SubTasks.AddAsync(subTask);
+
+        // History Kaydı
+        var history = new TodoHistory
+        {
+            Todo = todo,
+            Status = $"Alt görev eklendi: '{subTask.Title}'",
+            CreatedDate = DateTime.Now
+        };
+        await _unitOfWork.TodoHistories.AddHistoryAsync(history);
 
         await _unitOfWork.SaveChangesAsync();
+        return subTask;
+    }
 
-        Console.WriteLine($"🧹 [GECE TEMİZLİĞİ] {DateTime.Now:dd.MM.yyyy HH:mm} - Soft-delete yapılmış toplam {count} adet eski görev veritabanından kalıcı olarak silindi.");
-    }
-    else
+    public async Task<bool> ToggleSubTaskAsync(int todoId, int subTaskId)
     {
-        Console.WriteLine($"🧹 [GECE TEMİZLİĞİ] {DateTime.Now:dd.MM.yyyy HH:mm} - Silinecek eski görev bulunamadı. Veritabanı temiz!");
+        var subTask = await _unitOfWork.SubTasks.GetByIdAsync(subTaskId);
+        if (subTask == null || subTask.TaskId != todoId)
+            return false;
+
+        subTask.IsCompleted = !subTask.IsCompleted; // 🎯 bool tersini alıyoruz (toggle)
+
+        string stateText = subTask.IsCompleted ? "Tamamlandı" : "Tamamlanmadı";
+        var history = new TodoHistory
+        {
+            TodoId = todoId,
+            Status = $"Alt görev '{subTask.Title}' durumu güncellendi: {stateText}",
+            CreatedDate = DateTime.Now
+        };
+
+        await _unitOfWork.TodoHistories.AddHistoryAsync(history);
+        await _unitOfWork.SaveChangesAsync();
+
+        return true;
     }
-}
+
+    public async Task<bool> DeleteSubTaskAsync(int todoId, int subTaskId)
+    {
+        var subTask = await _unitOfWork.SubTasks.GetByIdAsync(subTaskId);
+        if (subTask == null || subTask.TaskId != todoId)
+            return false;
+
+        var history = new TodoHistory
+        {
+            TodoId = todoId,
+            Status = $"Alt görev silindi: '{subTask.Title}'",
+            CreatedDate = DateTime.Now
+        };
+
+        await _unitOfWork.SubTasks.DeleteAsync(subTask);
+        await _unitOfWork.TodoHistories.AddHistoryAsync(history);
+        await _unitOfWork.SaveChangesAsync();
+
+        return true;
+    }
 }

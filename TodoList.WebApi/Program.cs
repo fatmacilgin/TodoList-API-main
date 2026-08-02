@@ -1,13 +1,16 @@
-using Microsoft.EntityFrameworkCore;
-using TodoList.DataAccess;
-using TodoList.Business;
-using TodoList.WebApi.Endpoints;
 using Hangfire;
 using Hangfire.PostgreSql;
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
+using System.Text;
+using TodoList.Business;
+using TodoList.Business.Abstract;
+using TodoList.Business.Concrete;
+using TodoList.DataAccess;
+using TodoList.WebApi.Endpoints;
+using System.Text.Json.Serialization;
 
 // ---------------------------------------------------------
 // 0. AYARLAR & AYIKLAMA (Render & Npgsql Uyumluluğu)
@@ -15,7 +18,8 @@ using Npgsql;
 // PostgreSQL Npgsql sürücüsünün tarih kısıtlamasını gevşetir (UTC hatalarını engeller)
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args);   
+
 
 // Render'dan gelen "postgres://" URI formatını Npgsql formatına dönüştürür
 var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -45,7 +49,10 @@ builder.Services.AddCors(options =>
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Secret"] ?? "BuCokGizliVeUzunBirSecretKeyOlmaliRenderTarafinaEkle!";
 var key = Encoding.UTF8.GetBytes(secretKey);
-
+builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
+{
+    options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+});
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -96,6 +103,8 @@ builder.Services.AddScoped<ITodoRepository, TodoRepository>();
 builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddScoped<ITodoHistoryRepository, TodoHistoryRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<ISubTaskService, SubTaskManager>();
+
 
 var app = builder.Build();
 
@@ -158,7 +167,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
         }
     });
 });
-
+app.MapSubTaskEndpoints();
 app.Run();
 
 // ---------------------------------------------------------

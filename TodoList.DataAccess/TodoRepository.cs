@@ -49,7 +49,7 @@ public class TodoRepository : ITodoRepository
     public async Task<int> GetCompletedCountAsync()
     {
         return await _context.Todos
-                             .Where(t => t.IsCompleted == 1) // int olduğu için == 1 yapıyoruz
+                             .Where(t => t.IsCompleted == true) // int olduğu için == 1 yapıyoruz
                              .CountAsync();
     }
     public async Task<List<Todo>> GetAllDeletedAsync()

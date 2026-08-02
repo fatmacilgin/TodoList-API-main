@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<Todo> Todos => Set<Todo>();
     public DbSet<User> Users => Set<User>();
     public DbSet<TodoHistory> TodoHistories => Set<TodoHistory>();
+    public DbSet<SubTask> SubTasks { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,7 +34,15 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(h => h.TodoId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // SubTask - Task İlişkisi
+        modelBuilder.Entity<SubTask>()
+            .HasOne(s => s.Task)
+            .WithMany(t => t.SubTasks)
+            .HasForeignKey(s => s.TaskId)
+            .OnDelete(DeleteBehavior.Cascade); // Ana görev silinirse alt görevler de otomatik silinsin
     }
+    
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
