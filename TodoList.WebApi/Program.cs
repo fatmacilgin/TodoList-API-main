@@ -153,7 +153,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
                 Console.WriteLine("[INFO] Database Migration başlatılıyor...");
-                db.Database.Migrate();
+               // db.Database.Migrate();
                 Console.WriteLine("[INFO] Database Migration tamamlandı.");
 
                 var recurringJobManager = scope.ServiceProvider.GetService<IRecurringJobManager>();
