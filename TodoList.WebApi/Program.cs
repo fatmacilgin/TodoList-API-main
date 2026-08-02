@@ -34,20 +34,14 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
 
-// 🚀 CORS Politikası Tanımlama
+// CORS Yapılandırması
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins(
-                "https://frontend-zo0w.onrender.com", // Render Frontend Adresiniz
-                "http://localhost:5500",               // Local Testler İçin (VS Code Live Server vb.)
-                "http://127.0.0.1:5500",
-                "http://localhost:3000"
-            )
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
     });
 });
 
@@ -131,7 +125,6 @@ app.UseSwaggerUI(c =>
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseCors("AllowRenderFrontend");
 
 // Minimal API ve Controller Route Mapping
 app.MapControllers();
