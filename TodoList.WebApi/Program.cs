@@ -131,6 +131,7 @@ app.UseSwaggerUI(c =>
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseCors("AllowRenderFrontend");
 
 // Minimal API ve Controller Route Mapping
 app.MapControllers();
